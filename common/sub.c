@@ -1,20 +1,7 @@
-//
-// Created by Yeloki on 16.12.2022.
-//
-
-#ifndef LAB_1_LAB2_SRC_SUB_H_
-#define LAB_1_LAB2_SRC_SUB_H_
+#include "sub.h"
 
 #include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
 #include <malloc.h>
-
-struct line {
-  size_t size;
-  char *str;
-};
 
 struct line GetLine() {
   struct line line;
@@ -34,10 +21,9 @@ struct line GetLine() {
     tmp_c = getchar();
   }
 
-  str = realloc(str, size);
+  str = realloc(str, size + 1);
   line.str = str;
-  line.size = size;
+  line.str[size] = '\000';
+  line.size = size + 1;
   return line;
 }
-
-#endif //LAB_1_LAB2_SRC_SUB_H_
