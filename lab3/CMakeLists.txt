@@ -3,7 +3,6 @@ project(lab-3)
 
 set(CMAKE_CXX_STANDARD 23)
 
-
 set(SRC_EXTRA ../common/cpp/ArgsParser.cpp ../common/cpp/ArgsParser.hpp)
 
 set(MAIN_EXEC src/main.cpp ${SRC_EXTRA})
