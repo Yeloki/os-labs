@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
   }
   std::cout << primes_count << std::endl;
   const auto delta = (std::chrono::system_clock::now() - start);
-
+  delete bitmask;
   std::cout
       << "Time used: "
       << std::chrono::duration_cast<std::chrono::milliseconds>(delta).count()

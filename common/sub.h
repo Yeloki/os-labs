@@ -4,9 +4,9 @@
 
 #ifndef SUB_H_
 #define SUB_H_
-#include <stddef.h>
-#include <stdbool.h>
 #include "defines.h"
+#include <stdbool.h>
+#include <stddef.h>
 
 struct line {
   size_t size;
@@ -16,6 +16,8 @@ struct line {
 
 struct line GetLine(bool with_end);
 
+struct line GetLineI(const char *raw_data);
+
 void ReverseLine(struct line *line);
 
 void TestReverseLine();
@@ -24,4 +26,4 @@ void InItLine(struct line *line, const char *init_list, size_t char_count);
 
 void DestroyLine(struct line *line);
 
-#endif //SUB_H_
+#endif // SUB_H_

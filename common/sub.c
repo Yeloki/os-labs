@@ -1,21 +1,21 @@
 #include "sub.h"
 
-#include <stdio.h>
-#include <malloc.h>
 #include <assert.h>
+#include <malloc.h>
+#include <stdio.h>
 #include <unistd.h>
 
 struct line GetLine(bool with_end) {
   struct line line;
   line.size = 0;
   line.capacity = 4;
-  line.str = (char *) malloc(sizeof(char) * line.capacity);
+  line.str = (char *)malloc(sizeof(char) * line.capacity);
   char tmp_c;
 
   read(fileno(stdin), &tmp_c, sizeof(char));
   while (tmp_c != '\n' && tmp_c != 0) {
 
-    line.str[line.size++] = (char) tmp_c;
+    line.str[line.size++] = (char)tmp_c;
     if (line.size - 1 >= line.capacity) {
       line.capacity = line.capacity * 2;
       line.str = realloc(line.str, line.capacity);
@@ -34,6 +34,35 @@ struct line GetLine(bool with_end) {
     line.capacity = line.size + 1;
     line.str[line.size] = '\000';
   }
+  return line;
+}
+
+struct line GetLineI(const char *raw_data) {
+  struct line line;
+  line.size = 0;
+  line.capacity = 4;
+  line.str = (char *)malloc(sizeof(char) * line.capacity);
+  char tmp_c;
+  size_t i = 0;
+  tmp_c = raw_data[i++];
+
+
+  while (tmp_c != '\n' && tmp_c != 0) {
+
+    line.str[line.size++] = (char)tmp_c;
+
+    if (line.size - 1 >= line.capacity) {
+      line.capacity = line.capacity * 2;
+      line.str = realloc(line.str, line.capacity);
+    }
+
+    tmp_c = raw_data[i++];
+  }
+
+  line.str = realloc(line.str, line.size + 1);
+  line.capacity = line.size + 1;
+  line.str[line.size] = '\000';
+
   return line;
 }
 
