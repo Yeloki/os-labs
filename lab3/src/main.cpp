@@ -1,7 +1,6 @@
 #include <boost/lexical_cast.hpp>
 #include <fstream>
 #include <iostream>
-#include <mutex>
 #include <pthread.h>
 #include <set>
 #include <stdexcept>
@@ -134,6 +133,8 @@ int main(int argc, char **argv) {
         auto *pthreadAttr = new pthread_attr_t;
         workers[j].second = pthreadAttr;
         pthread_attr_init(pthreadAttr);
+
+        // With correct args mutex are extra, therefore I was not using it
         pthread_create(&workers[j].first, pthreadAttr,
                        reinterpret_cast<void *(*)(void *)>(Worker), args);
       }
