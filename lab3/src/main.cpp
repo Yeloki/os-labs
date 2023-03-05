@@ -1,12 +1,13 @@
+#include <atomic>
 #include <boost/lexical_cast.hpp>
+#include <chrono>
+#include <ctime>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <pthread.h>
 #include <set>
 #include <stdexcept>
-
-#include <atomic>
-#include <memory>
 
 // number of primes between 2 and x:
 //             10 =>           4
@@ -21,7 +22,7 @@
 // 10,000,000,000 => 455,052,511
 
 struct Settings {
-  int threads_count = 4;
+  int threads_count = 6;
   int up_border = 1e5;
 };
 
@@ -35,7 +36,7 @@ Settings ParseSettings(int argc, char **argv) {
     if (argv[1][1] == 't') {
       settings.threads_count = boost::lexical_cast<int>(argv[2]);
     } else if (argv[1][1] == 'n') {
-      settings.up_border = boost::lexical_cast<int>(argv[2]) + 1;
+      settings.up_border = boost::lexical_cast<int>(argv[2]);
     } else {
       throw std::runtime_error(
           "Wrong argument was provided, type -h for more info");
@@ -46,7 +47,7 @@ Settings ParseSettings(int argc, char **argv) {
     if (argv[3][1] == 't') {
       settings.threads_count = boost::lexical_cast<int>(argv[4]);
     } else if (argv[3][1] == 'n') {
-      settings.up_border = boost::lexical_cast<int>(argv[4]) + 1;
+      settings.up_border = boost::lexical_cast<int>(argv[4]);
     } else {
       throw std::runtime_error(
           "Wrong argument was provided, type -h for more info");
@@ -90,7 +91,8 @@ int main(int argc, char **argv) {
   if (argc == 2 && argv[1][1] == 'h') {
     std::cout << "Usage: main -t [] -n []\n"
                  "t - count of threads\n"
-                 "n - up border of prime search\n";
+                 "n - up border of prime search\n"
+                 "for more threads dont forget up vm cores quota\n";
     return 0;
   }
 
@@ -100,7 +102,7 @@ int main(int argc, char **argv) {
   const auto settings = ParseSettings(argc, argv);
 
   // from two to up_border (two extra values)
-
+  const auto start = std::chrono::system_clock::now();
   auto *bitmask = new uint8_t[settings.up_border];
   for (int i(0); i < settings.up_border; ++i) {
     bitmask[i] = 1;
@@ -112,6 +114,10 @@ int main(int argc, char **argv) {
 
   for (int prime(2); prime <= settings.up_border; ++prime) {
 
+    if (prime / 10000 * 10000 == prime) {
+      std::cout << "Numbers counted: " << prime << std::endl;
+    }
+
     if (bitmask[ToIndex(prime)]) {
       workers.resize(settings.threads_count);
       fout << prime << std::endl;
@@ -121,11 +127,11 @@ int main(int argc, char **argv) {
 
       for (int j(0); j < settings.threads_count; ++j) {
 
-        const auto lower_bound =
-            settings.up_border - (settings.threads_count - j) * cluster_size;
-        const auto upper_bound =
-            settings.up_border -
-            (settings.threads_count - j - 1) * cluster_size;
+        const auto lower_bound = prime + cluster_size * j + 1;
+
+        const auto upper_bound = (j == settings.threads_count - 1)
+                                     ? (settings.up_border + 1)
+                                     : (prime + cluster_size * (j + 1) + 1);
 
         auto *args = new WorkerArgs(prime, lower_bound, upper_bound, bitmask,
                                     ToIndex, Modifier);
@@ -145,6 +151,12 @@ int main(int argc, char **argv) {
       workers.clear();
     }
   }
-  std::cout << primes_count;
+  std::cout << primes_count << std::endl;
+  const auto delta = (std::chrono::system_clock::now() - start);
+
+  std::cout
+      << "Time used: "
+      << std::chrono::duration_cast<std::chrono::milliseconds>(delta).count()
+      << std::endl;
   return 0;
 }
