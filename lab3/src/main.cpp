@@ -22,8 +22,8 @@
 // 10,000,000,000 => 455,052,511
 
 struct Settings {
-  int threads_count = 2;
-  int up_border = 1e8;
+  int threads_count = 4;
+  int up_border = 1e5;
 };
 
 Settings ParseSettings(int argc, char **argv) {
@@ -36,7 +36,7 @@ Settings ParseSettings(int argc, char **argv) {
     if (argv[1][1] == 't') {
       settings.threads_count = boost::lexical_cast<int>(argv[2]);
     } else if (argv[1][1] == 'n') {
-      settings.up_border = boost::lexical_cast<int>(argv[2]);
+      settings.up_border = boost::lexical_cast<int>(argv[2]) + 1;
     } else {
       throw std::runtime_error(
           "Wrong argument was provided, type -h for more info");
@@ -47,7 +47,7 @@ Settings ParseSettings(int argc, char **argv) {
     if (argv[3][1] == 't') {
       settings.threads_count = boost::lexical_cast<int>(argv[4]);
     } else if (argv[3][1] == 'n') {
-      settings.up_border = boost::lexical_cast<int>(argv[4]);
+      settings.up_border = boost::lexical_cast<int>(argv[4]) + 1;
     } else {
       throw std::runtime_error(
           "Wrong argument was provided, type -h for more info");
