@@ -1,5 +1,5 @@
 #include "areas.hpp"
 
-double RectArea(double a, double b) { return a * b; }
+extern "C" double RectArea(double a, double b) { return a * b; }
 
-double RightTriangleArea(double a, double b) { return a * b / 2; }
+extern "C" double RightTriangleArea(double a, double b) { return a * b / 2; }

@@ -1,5 +1,5 @@
- #include "libs/areas.hpp"
- #include "libs/primes.hpp"
+#include "libs/areas.hpp"
+#include "libs/primes.hpp"
 
 #include <bits/stdc++.h>
 #include <cstdio>
@@ -14,20 +14,51 @@ int main() {
   handle2 = dlopen("./libprimes_sh.so", RTLD_NOW);
   int64_t (*Sieve)(int64_t, int64_t);
   int64_t (*Native)(int64_t, int64_t);
+
   double (*RectArea)(double, double);
   double (*RightTriangleArea)(double, double);
-  Sieve = (int64_t(*)(int64_t, int64_t))dlsym(handle2, "_Z5Sievell");
-  Native = (int64_t(*)(int64_t, int64_t))dlsym(handle2, "_Z6Nativell");
-  RectArea = (double (*)(double, double))dlsym(handle1, "_Z8RectAreadd");
+  Sieve = (int64_t(*)(int64_t, int64_t))dlsym(handle2, "Sieve");
+  Native = (int64_t(*)(int64_t, int64_t))dlsym(handle2, "Native");
+  RectArea = (double (*)(double, double))dlsym(handle1, "RectArea");
   RightTriangleArea =
-      (double (*)(double, double))dlsym(handle1, "_Z17RightTriangleAreadd");
+      (double (*)(double, double))dlsym(handle1, "RightTriangleArea");
+  bool real(1);
+  std::optional<double> a = {};
+  std::optional<double> b = {};
 
-  int64_t a, b;
-  std::cin >> a >> b;
-  std::cout << "Sieve " << Sieve(a, b) << std::endl;
-  std::cout << "Native " << Native(a, b) << std::endl;
-  double c, d;
-  std::cin >> c >> d;
-  std::cout << "RectArea " << RectArea(c, d) << std::endl;
-  std::cout << "RightTriangleArea " << RightTriangleArea(c, d) << std::endl;
+  while (true) {
+    double tmp;
+    if (!a.has_value()) {
+      std::cin >> tmp;
+      a = tmp;
+    } else {
+      std::cin >> tmp;
+      b = tmp;
+    }
+
+    if (a.has_value() && a.value() == 0) {
+      a = {};
+      real = !real;
+    } else if (b.has_value() && b.value() == 0) {
+      b = {};
+      real = !real;
+    }
+
+    if (real) {
+      if (a.has_value() && b.has_value()) {
+        std::cout << "Sieve " << Sieve(a.value(), b.value()) << std::endl;
+        std::cout << "RectArea " << RectArea(a.value(), b.value()) << std::endl;
+        a = {};
+        b = {};
+      }
+    } else {
+      if (a.has_value() && b.has_value()) {
+        std::cout << "Native " << Native(a.value(), b.value()) << std::endl;
+        std::cout << "RightTriangleArea "
+                  << RightTriangleArea(a.value(), b.value()) << std::endl;
+        a = {};
+        b = {};
+      }
+    }
+  }
 }
