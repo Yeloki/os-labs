@@ -52,6 +52,7 @@ int main() {
         b = {};
       }
     } else {
+      
       if (a.has_value() && b.has_value()) {
         std::cout << "Native " << Native(a.value(), b.value()) << std::endl;
         std::cout << "RightTriangleArea "
