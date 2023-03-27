@@ -1,115 +1,139 @@
-#include <cstdio>
-#include <zmq.hpp>
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
-#include "kmp.h"
+#include <future>
+#include <iostream>
+#include <sstream>
 #include <string>
+#include <thread>
+#include <unordered_set>
+#include <zmq.hpp>
 
-typedef struct {
-  std::string str;
-  std::string sub;
-  int command;
-  int node;
-} data_for_node;
+#include <boost/lexical_cast.hpp>
+#include <csignal>
+#include <zmq_addon.hpp>
 
-int main(int argc, char * argv[]){
+std::string BuildSendData(int command, std::optional<int> id,
+                          std::optional<int> lid,
+                          std::optional<std::vector<int>> data) {
+  if (command == 1) {
 
-  int CUR_NODE = atoi(argv[1]);
-  int PAR_NODE = atoi(argv[2]);
+    return "ping " + std::to_string(id.value());
+  } else if (command == 2) {
 
-  //printf("node: %d, parent: %d\n", CUR_NODE, PAR_NODE);
+    return "create " + std::to_string(id.value()) + " " +
+           std::to_string(lid.value());
+  } else if (command == 3) {
+    std::stringstream ss;
 
-  void *context = zmq_ctx_new(); //сокет для коннекта с родительским узлом
-  void *subscriber = zmq_socket(context, ZMQ_SUB);
-  char adress[256];
-  snprintf(adress, sizeof(adress), "tcp://localhost:%d", 4040 + PAR_NODE);
-  if (PAR_NODE == -1){
-    zmq_connect(subscriber, "tcp://localhost:4040");
-  } else {
-    zmq_connect(subscriber, adress);
+    ss << "exec " << id.value() << " ";
+    ss << data.value().size() << " ";
+    for (size_t i(0); i < data.value().size(); ++i) {
+      ss << data.value()[i];
+      if (i != data->size() - 1)
+        ss << " ";
+    }
+
+    return ss.str();
   }
-  zmq_setsockopt(subscriber, ZMQ_SUBSCRIBE, 0, 0);
+  return "remove " + std::to_string(id.value());
+}
 
-  void *context_2 = zmq_ctx_new(); //сокет для коннекта с дочерними узлами
-  void *publisher = zmq_socket(context, ZMQ_PUB);
-  char adress_2[256];
-  snprintf(adress_2, sizeof(adress_2), "tcp://*:%d", 4040 + CUR_NODE);
-  zmq_bind (publisher, adress_2);
-
-  for(;;){
-    zmq_msg_t reply;
-    zmq_msg_init(&reply);
-
-    zmq_msg_recv (&reply, subscriber, 0);
-
-    auto* data = reinterpret_cast<data_for_node *>(malloc(zmq_msg_size(&reply)));
-    memcpy(data, zmq_msg_data(&reply), zmq_msg_size(&reply));
-
-    //printf("node %d: str: %s, sub: %s, command: %d, node: %d\n", CUR_NODE, data->str, data->sub, data->command, data->node);
-
-    if (data->command == 1){
-
-      if(data->node != CUR_NODE){
-        zmq_msg_send(&reply, publisher, 0);
-        zmq_msg_close(&reply);
-
-        free(data);
-        continue;
-      }
-      zmq_msg_close(&reply);
-
-      sleep(10);
-
-      printf("Ok:%d:%d\n", CUR_NODE, KMP(data->str.c_str(), data->sub.c_str()));
-
-    }
-    else if (data->command == 2){
-
-      printf("Ok:%d\n", CUR_NODE);
-
-      zmq_msg_send(&reply, publisher, 0);
-      zmq_msg_close(&reply);
-
-    }
-    else if (data->command == 3){
-
-      if(data->node == CUR_NODE || data->node == -1){
-
-        printf("Ok:%d\n", CUR_NODE);
-
-        zmq_msg_close(&reply);
-        free(data);
-
-        auto* data2 = reinterpret_cast<data_for_node *>(malloc(sizeof(data_for_node)));
-        data2->command = 3;
-        data2->node = -1;
-
-        zmq_msg_t message;
-        zmq_msg_init_size(&message, sizeof(data_for_node));
-
-        memcpy(zmq_msg_data(&message), data2, zmq_msg_size(&message));
-
-        zmq_msg_send(&message, publisher, 0);
-
-        zmq_msg_close(&message);
-
-        free(data);
-        break;
-
-      } else {
-        zmq_msg_send(&reply, publisher, 0);
-        zmq_msg_close(&reply);
-      }
-
-    }
-
-    free(data);
+void CreateNode(int id, int lid) {
+  auto pid = fork();
+  if (pid == 0) {
+    execl("./lab-678-worker", "lab-678-worker", std::to_string(id).c_str(),
+          NULL);
   }
-  zmq_close(subscriber);
-  zmq_close(publisher);
-  zmq_ctx_destroy(context);
-  zmq_ctx_destroy(context_2);
+  std::cout << "[OK ON CREATE NEW NODE, PID -> " << pid << "]" << std::endl;
+}
 
-  return 0;
+int main(int argc, char **argv) {
+  const auto kid = argv[1];
+  zmq::context_t ctx;
+  zmq::socket_t subscriber(ctx, zmq::socket_type::sub);
+  zmq::socket_t publisher(ctx, zmq::socket_type::pub);
+
+  publisher.bind("inproc://#1");
+  const std::string last_endpoint =
+      publisher.get(zmq::sockopt::last_endpoint);
+  std::cout << "Connecting to "
+            << last_endpoint << std::endl;
+  subscriber.connect(last_endpoint);
+//  subscriber.connect("tcp://127.0.0.1:*");
+  std::string next_id;
+  std::cout << kid << std::endl;
+  subscriber.set(zmq::sockopt::subscribe, kid);
+
+  while (true) {
+    // Receive all parts of the message
+    std::vector<zmq::message_t> recv_msgs;
+    zmq::recv_result_t result =
+        zmq::recv_multipart(subscriber, std::back_inserter(recv_msgs));
+    if (result && *result == 2) {
+      std::stringstream si(recv_msgs[1].to_string());
+      std::cin.rdbuf(si.rdbuf());
+      ////////////////////////////////////////////////////////
+      std::string command;
+
+      while (std::cin >> command) {
+        if (command == "create") {
+          int id, lid;
+          std::cin >> id >> lid;
+          if (std::to_string(id) != kid) {
+            zmq::message_t msg(BuildSendData(2, id, lid, {}));
+            publisher.send(zmq::message_t(next_id), zmq::send_flags::sndmore);
+            publisher.send(msg);
+          } else {
+            CreateNode(id, lid);
+          }
+        } else if (command == "ping") {
+          int id;
+          std::cin >> id;
+          if (std::to_string(id) != kid) {
+            zmq::message_t msg(BuildSendData(1, id, {}, {}));
+            publisher.send(zmq::message_t(next_id), zmq::send_flags::sndmore);
+            publisher.send(msg);
+          } else {
+            zmq::message_t msg("[OK ON PING " + std::string(kid) + "]");
+            publisher.send(zmq::message_t("-1"), zmq::send_flags::sndmore);
+            publisher.send(msg);
+          }
+        } else if (command == "exec") {
+          int id;
+          std::cin >> id;
+          int n;
+          std::cin >> n;
+          std::vector<int> data(n);
+          for (auto &v : data)
+            std::cin >> v;
+          if (std::to_string(id) != kid) {
+            zmq::message_t msg(BuildSendData(3, id, {}, data));
+            publisher.send(zmq::message_t(next_id), zmq::send_flags::sndmore);
+            publisher.send(msg);
+          } else {
+            int res(0);
+            for (const auto &v : data)
+              res += v;
+            zmq::message_t msg("[OK ON EXEC NODE ID " + std::string(kid) +
+                               ", RESULT " + std::to_string(res) + " ]");
+            publisher.send(zmq::message_t("-1"), zmq::send_flags::sndmore);
+            publisher.send(msg);
+          }
+        } else if (command == "remove") {
+          int id;
+          std::cin >> id;
+          if (std::to_string(id) != kid) {
+            zmq::message_t msg(BuildSendData(4, id, {}, {}));
+            publisher.send(zmq::message_t(next_id), zmq::send_flags::sndmore);
+            publisher.send(msg);
+          } else {
+            if (!next_id.empty()) {
+              zmq::message_t msg(BuildSendData(4, id, {}, {}));
+              publisher.send(zmq::message_t(next_id), zmq::send_flags::sndmore);
+              publisher.send(msg);
+            }
+            return 0;
+          }
+        }
+      }
+    }
+  }
 }
